@@ -17,12 +17,11 @@ class TestIntegration:
     @pytest.mark.integration
     def test_full_workflow_simulation(self):
         """Тест полного рабочего процесса"""
-        with patch('generators.text_gen.openai.OpenAI') as mock_openai_text, \
-             patch('generators.image_gen.openai.OpenAI') as mock_openai_image, \
-             patch('social_publishers.vk_publisher.vk_api.VkApi') as mock_vk_api, \
-             patch('social_publishers.telegram_publisher.telebot.TeleBot') as mock_telebot, \
-             patch('social_stats.stats_collector.vk_api.VkApi') as mock_vk_stats, \
-             patch('social_stats.stats_collector.telebot.TeleBot') as mock_tg_stats:
+        with patch('openai.OpenAI') as mock_openai, \
+             patch.object(VKPublisher, 'upload_image', return_value='photo123_456') as mock_upload_image, \
+             patch.object(TelegramPublisher, '_send_photo_message') as mock_send_photo_message, \
+             patch('vk_api.VkApi') as mock_vk_api, \
+             patch('telebot.TeleBot') as mock_telebot:
             
             # Настройка моков для генерации текста
             mock_text_client = MagicMock()
@@ -30,7 +29,6 @@ class TestIntegration:
             mock_text_response.choices = [MagicMock()]
             mock_text_response.choices[0].message.content = "Тестовый пост о технологиях"
             mock_text_client.chat.completions.create.return_value = mock_text_response
-            mock_openai_text.return_value = mock_text_client
             
             # Настройка моков для генерации изображения
             mock_image_client = MagicMock()
@@ -38,7 +36,7 @@ class TestIntegration:
             mock_image_response.data = [MagicMock()]
             mock_image_response.data[0].url = "https://example.com/image.jpg"
             mock_image_client.images.generate.return_value = mock_image_response
-            mock_openai_image.return_value = mock_image_client
+            mock_openai.side_effect = [mock_text_client, mock_image_client]
             
             # Настройка моков для VK
             mock_vk_session = MagicMock()
@@ -54,6 +52,12 @@ class TestIntegration:
             mock_message.chat.id = 789
             mock_message.text = "Тестовый пост о технологиях"
             mock_bot.send_message.return_value = mock_message
+            mock_send_photo_message.return_value = {
+                'message_id': 456,
+                'chat_id': 789,
+                'text': 'Тестовый пост о технологиях',
+                'photo': [],
+            }
             mock_telebot.return_value = mock_bot
             
             # Настройка моков для статистики
@@ -68,7 +72,7 @@ class TestIntegration:
                 'date': 1234567890
             }]
             mock_vk_stats_session.get_api.return_value = mock_vk_stats_api
-            mock_vk_stats.return_value = mock_vk_stats_session
+            mock_vk_api.side_effect = [mock_vk_session, mock_vk_stats_session]
             
             mock_tg_bot = MagicMock()
             mock_tg_chat = MagicMock()
@@ -76,7 +80,7 @@ class TestIntegration:
             mock_tg_chat.type = "channel"
             mock_tg_bot.get_chat.return_value = mock_tg_chat
             mock_tg_bot.get_chat_member_count.return_value = 1000
-            mock_tg_stats.return_value = mock_tg_bot
+            mock_telebot.side_effect = [mock_bot, mock_tg_bot]
             
             # Выполнение полного процесса
             # 1. Генерация текста
@@ -100,6 +104,7 @@ class TestIntegration:
             )
             vk_result = vk_publisher.publish_post(post_text, image_url)
             assert vk_result == {'post_id': 123}
+            mock_upload_image.assert_called_once_with(image_url)
             
             # 4. Публикация в Telegram
             tg_publisher = TelegramPublisher(
@@ -108,6 +113,7 @@ class TestIntegration:
             )
             tg_result = tg_publisher.send_post(post_text, image_url)
             assert tg_result['message_id'] == 456
+            mock_send_photo_message.assert_called_once_with(post_text, image_url)
             
             # 5. Сбор статистики
             stats_collector = StatsCollector(
@@ -141,8 +147,7 @@ class TestIntegration:
     @pytest.mark.integration
     def test_partial_failure_workflow(self):
         """Тест частичного сбоя в процессе"""
-        with patch('generators.text_gen.openai.OpenAI') as mock_openai_text, \
-             patch('generators.image_gen.openai.OpenAI') as mock_openai_image, \
+        with patch('openai.OpenAI') as mock_openai, \
              patch('social_publishers.vk_publisher.vk_api.VkApi') as mock_vk_api, \
              patch('social_publishers.telegram_publisher.telebot.TeleBot') as mock_telebot:
             
@@ -152,12 +157,11 @@ class TestIntegration:
             mock_text_response.choices = [MagicMock()]
             mock_text_response.choices[0].message.content = "Тестовый пост"
             mock_text_client.chat.completions.create.return_value = mock_text_response
-            mock_openai_text.return_value = mock_text_client
             
             # Ошибка генерации изображения
             mock_image_client = MagicMock()
             mock_image_client.images.generate.side_effect = Exception("Image generation failed")
-            mock_openai_image.return_value = mock_image_client
+            mock_openai.side_effect = [mock_text_client, mock_image_client]
             
             # Успешная публикация в VK
             mock_vk_session = MagicMock()
@@ -187,4 +191,3 @@ class TestIntegration:
             tg_publisher = TelegramPublisher("test-token", "@test_channel")
             tg_result = tg_publisher.send_post(post_text, image_url)
             assert tg_result is None
-

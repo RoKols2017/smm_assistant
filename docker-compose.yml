@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sms_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-sms_assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-db-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sms_assistant} -d ${POSTGRES_DB:-sms_assistant}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,10 +21,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      FLASK_ENV: ${FLASK_ENV:-development}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-dev-insecure-secret-key}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sms_assistant:change-me-db-password@postgres:5432/sms_assistant}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-5}
+      OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-dall-e-3}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TIMEOUT: ${TIMEOUT:-30}
+      VK_API_VERSION: ${VK_API_VERSION:-5.139}
     ports:
       - "8000:8000"
 

@@ -3,8 +3,22 @@
 """
 
 import pytest
+import httpx
 from unittest.mock import patch, MagicMock
 from generators.text_gen import TextGenerator
+
+
+def make_rate_limit_error(message="Rate limit exceeded"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx.Response(429, request=request)
+    from openai import RateLimitError
+    return RateLimitError(message, response=response, body=None)
+
+
+def make_api_error(message="API error"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    from openai import APIError
+    return APIError(message, request=request, body=None)
 
 
 class TestTextGenerator:
@@ -116,10 +130,8 @@ class TestTextGenerator:
     @patch('generators.text_gen.openai.OpenAI')
     def test_generate_post_rate_limit_error(self, mock_openai):
         """Тест ошибки лимита запросов"""
-        from openai import RateLimitError
-        
         mock_client = MagicMock()
-        mock_client.chat.completions.create.side_effect = RateLimitError("Rate limit exceeded")
+        mock_client.chat.completions.create.side_effect = make_rate_limit_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.text_gen.config') as mock_config:
@@ -137,10 +149,8 @@ class TestTextGenerator:
     @patch('generators.text_gen.openai.OpenAI')
     def test_generate_post_api_error(self, mock_openai):
         """Тест ошибки API"""
-        from openai import APIError
-        
         mock_client = MagicMock()
-        mock_client.chat.completions.create.side_effect = APIError("API error")
+        mock_client.chat.completions.create.side_effect = make_api_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.text_gen.config') as mock_config:
@@ -206,4 +216,3 @@ class TestTextGenerator:
             # Проверяем, что используется правильная модель
             call_args = mock_client.chat.completions.create.call_args
             assert call_args[1]['model'] == "gpt-4o"
-

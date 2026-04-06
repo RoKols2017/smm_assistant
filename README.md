@@ -7,11 +7,12 @@
 ## Быстрый старт
 
 ```bash
-cp .env.example .env
 docker compose up --build
 ```
 
 После запуска приложение доступно на `http://localhost:8000`.
+
+`docker compose` теперь имеет dev-defaults и может стартовать без `.env`. Если нужен production-like или кастомный запуск, сначала создайте `.env` из `.env.example`.
 
 ## Что умеет MVP
 

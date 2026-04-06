@@ -30,6 +30,8 @@ def test_login_rejects_invalid_password(client, app):
         follow_redirects=True,
     )
 
+    client.post("/auth/logout", follow_redirects=True)
+
     response = client.post(
         "/auth/login",
         data={"email": "user2@example.com", "password": "wrong-password"},

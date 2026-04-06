@@ -40,7 +40,7 @@ Python project for generating SMM content with OpenAI, publishing it to VK and T
 | File | Purpose |
 |------|---------|
 | `app/__init__.py` | Creates and configures the Flask application |
-| `app/config.py` | Defines Flask runtime configuration |
+| `app/config.py` | Defines Flask runtime configuration classes |
 | `app/services/content_workflow.py` | Orchestrates generation and optional VK posting |
 | `app/services/stats_service.py` | Reads VK stats for the signed-in user |
 | `test.py` | Runs the demo workflow: generate content, publish, then collect stats |

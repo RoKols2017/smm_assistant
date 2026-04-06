@@ -52,7 +52,7 @@ class TestVKPublisher:
             result = publisher.upload_image("http://example.com/image.jpg")
             
             assert result == "photo123_456"
-            mock_get.assert_called_once_with("http://example.com/image.jpg")
+            mock_get.assert_called_once_with("http://example.com/image.jpg", timeout=30)
             mock_post.assert_called_once()
     
     @patch('social_publishers.vk_publisher.requests.get')
@@ -190,4 +190,3 @@ class TestVKPublisher:
             result = publisher.publish_post("Test post")
             
             assert result is None
-

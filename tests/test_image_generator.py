@@ -3,8 +3,36 @@
 """
 
 import pytest
+import httpx
 from unittest.mock import patch, MagicMock
 from generators.image_gen import ImageGenerator
+
+
+def make_authentication_error(message="Auth failed"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/images/generations")
+    response = httpx.Response(401, request=request)
+    from openai import AuthenticationError
+    return AuthenticationError(message, response=response, body=None)
+
+
+def make_rate_limit_error(message="Rate limit exceeded"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/images/generations")
+    response = httpx.Response(429, request=request)
+    from openai import RateLimitError
+    return RateLimitError(message, response=response, body=None)
+
+
+def make_bad_request_error(message="Bad request"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/images/generations")
+    response = httpx.Response(400, request=request)
+    from openai import BadRequestError
+    return BadRequestError(message, response=response, body=None)
+
+
+def make_api_error(message="API error"):
+    request = httpx.Request("POST", "https://api.openai.com/v1/images/generations")
+    from openai import APIError
+    return APIError(message, request=request, body=None)
 
 
 class TestImageGenerator:
@@ -103,10 +131,8 @@ class TestImageGenerator:
     @patch('generators.image_gen.openai.OpenAI')
     def test_generate_image_authentication_error(self, mock_openai):
         """Тест ошибки аутентификации"""
-        from openai import AuthenticationError
-        
         mock_client = MagicMock()
-        mock_client.images.generate.side_effect = AuthenticationError("Auth failed")
+        mock_client.images.generate.side_effect = make_authentication_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.image_gen.config') as mock_config:
@@ -121,10 +147,8 @@ class TestImageGenerator:
     @patch('generators.image_gen.openai.OpenAI')
     def test_generate_image_rate_limit_error(self, mock_openai):
         """Тест ошибки лимита запросов"""
-        from openai import RateLimitError
-        
         mock_client = MagicMock()
-        mock_client.images.generate.side_effect = RateLimitError("Rate limit exceeded")
+        mock_client.images.generate.side_effect = make_rate_limit_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.image_gen.config') as mock_config:
@@ -139,10 +163,8 @@ class TestImageGenerator:
     @patch('generators.image_gen.openai.OpenAI')
     def test_generate_image_bad_request_error(self, mock_openai):
         """Тест ошибки неверного запроса"""
-        from openai import BadRequestError
-        
         mock_client = MagicMock()
-        mock_client.images.generate.side_effect = BadRequestError("Bad request")
+        mock_client.images.generate.side_effect = make_bad_request_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.image_gen.config') as mock_config:
@@ -157,10 +179,8 @@ class TestImageGenerator:
     @patch('generators.image_gen.openai.OpenAI')
     def test_generate_image_api_error(self, mock_openai):
         """Тест ошибки API"""
-        from openai import APIError
-        
         mock_client = MagicMock()
-        mock_client.images.generate.side_effect = APIError("API error")
+        mock_client.images.generate.side_effect = make_api_error()
         mock_openai.return_value = mock_client
         
         with patch('generators.image_gen.config') as mock_config:
@@ -211,4 +231,3 @@ class TestImageGenerator:
             assert call_args[1]['size'] == "1024x1024"
             assert call_args[1]['quality'] == "standard"
             assert call_args[1]['n'] == 1
-

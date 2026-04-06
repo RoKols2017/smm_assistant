@@ -13,6 +13,11 @@ from config import config
 logger = logging.getLogger(__name__)
 
 
+def _configured_model(name: str, default: str) -> str:
+    value = getattr(config, name, None)
+    return value if isinstance(value, str) and value.strip() else default
+
+
 class TextGenerator:
     """
     Класс для генерации текстовых постов для социальных сетей
@@ -25,7 +30,7 @@ class TextGenerator:
     - Обработка ошибок API
     """
     
-    def __init__(self, tone: str, topic: str, openai_key: Optional[str] = None, model: str = "gpt-5"):
+    def __init__(self, tone: str, topic: str, openai_key: Optional[str] = None, model: Optional[str] = None):
         """
         Инициализация генератора текста
         
@@ -47,22 +52,19 @@ class TextGenerator:
         
         self.tone = tone.strip()
         self.topic = topic.strip()
-        self.model = model
+        resolved_model = model or _configured_model('openai_text_model', 'gpt-5')
+        self.model = resolved_model
         
         # Валидация модели
         valid_models = ["gpt-5", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
-        if model not in valid_models:
-            logger.warning(f"Модель '{model}' не в списке рекомендуемых: {valid_models}")
+        if self.model not in valid_models:
+            logger.warning(f"Модель '{self.model}' не в списке рекомендуемых: {valid_models}")
         
         # Получаем API ключ из конфига или параметра
         if openai_key:
             self.openai_key = openai_key
         else:
             self.openai_key = config.openai_api_key
-        
-        # Если модель не указана, берем из конфига
-        if model == "gpt-5" and hasattr(config, 'openai_text_model'):
-            self.model = config.openai_text_model
         
         # Настройка клиента OpenAI (новый API)
         self.client = openai.OpenAI(api_key=self.openai_key)

@@ -1,5 +1,6 @@
 from __future__ import with_statement
 
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -8,7 +9,7 @@ from flask import current_app
 
 config = context.config
 
-if config.config_file_name is not None:
+if config.config_file_name is not None and os.path.exists(config.config_file_name):
     fileConfig(config.config_file_name)
 
 

@@ -156,6 +156,22 @@ class TestStatsCollector:
             result = collector.get_telegram_stats(123, "@test_channel")
             
             assert result['member_count'] == 0
+
+    def test_get_group_members_count_falls_back_to_get_members(self):
+        """Тест fallback на groups.getMembers, если members_count не пришел"""
+        with patch('social_stats.stats_collector.vk_api.VkApi') as mock_vk_api:
+            mock_vk_session = MagicMock()
+            mock_vk = MagicMock()
+            mock_vk.groups.getById.return_value = [{'name': 'Test Group'}]
+            mock_vk.groups.getMembers.return_value = {'count': 777}
+            mock_vk_session.get_api.return_value = mock_vk
+            mock_vk_api.return_value = mock_vk_session
+
+            collector = StatsCollector(vk_access_token="test-token")
+
+            result = collector.get_group_members_count(456)
+
+            assert result == 777
     
     def test_get_telegram_stats_api_error(self):
         """Тест ошибки Telegram API при получении статистики"""
@@ -244,4 +260,3 @@ class TestStatsCollector:
             
             assert result['vk_stats'] == {'likes': 10}
             assert result['telegram_stats'] == {'member_count': 1000}
-

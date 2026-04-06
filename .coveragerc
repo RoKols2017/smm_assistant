@@ -1,0 +1,7 @@
+[run]
+omit =
+    run_tests.py
+    test.py
+    test_env.py
+    wsgi.py
+    app/wsgi.py

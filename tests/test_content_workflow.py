@@ -1,5 +1,12 @@
 from unittest.mock import patch
 
+import pytest
+
+from app.extensions import db
+from app.models.generated_post import GeneratedPost
+from app.models.user import User
+from app.services.content_workflow import ContentWorkflowService
+
 
 def register_and_login(client):
     client.post(
@@ -64,3 +71,27 @@ def test_content_generation_gracefully_handles_vk_failure(client):
     body = response.get_data(as_text=True)
     assert response.status_code == 200
     assert "Контент успешно сгенерирован, но автопостинг в VK не выполнен" in body
+
+
+def test_content_workflow_rolls_back_session_when_commit_fails(app, mocker):
+    with app.app_context():
+        user = User(email="workflow@example.com", password_hash="hashed")
+        db.session.add(user)
+        db.session.commit()
+
+        service = ContentWorkflowService()
+        mocker.patch.object(service.openai_service, "generate_post", return_value="Generated text")
+        rollback = mocker.spy(db.session, "rollback")
+        mocker.patch.object(db.session, "commit", side_effect=RuntimeError("db is down"))
+
+        with pytest.raises(RuntimeError, match="db is down"):
+            service.generate_for_user(
+                user=user,
+                tone="friendly",
+                topic="AI tools",
+                generate_image=False,
+                auto_post_vk=False,
+            )
+
+        rollback.assert_called_once()
+        assert GeneratedPost.query.count() == 0

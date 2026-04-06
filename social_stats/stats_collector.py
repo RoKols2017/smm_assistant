@@ -218,7 +218,10 @@ class StatsCollector:
             try:
                 member_count = self.bot.get_chat_member_count(chat_id)
             except Exception as e:
-                self.logger.warning(f"Не удалось получить количество участников: {e}")
+                logger.warning(
+                    "[StatsCollector.get_telegram_stats] member count unavailable extra=%s",
+                    {"chat_id": chat_id, "error": str(e)},
+                )
             
             # Базовые метрики для Telegram
             stats = {

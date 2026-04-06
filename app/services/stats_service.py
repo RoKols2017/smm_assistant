@@ -28,6 +28,9 @@ class StatsService:
         if not settings:
             return VKStatsResult(None, None, "Сначала заполните VK settings.")
 
+        if not settings.vk_api_key or not settings.vk_group_id:
+            return VKStatsResult(None, None, "VK settings заполнены не полностью.")
+
         group_info = self.vk_service.get_group_info(
             token=settings.vk_api_key,
             group_id=settings.vk_group_id,
