@@ -34,32 +34,33 @@ docker compose up --build
 git clone <repository-url>
 cd sms_assistant
 cp .env.example .env
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
 ```
 
 Для production перед запуском:
 
 1. заполните `FLASK_SECRET_KEY` и `DATABASE_URL`;
-2. если есть reverse proxy, задайте `TRUST_PROXY_COUNT` и оставьте `PREFERRED_URL_SCHEME=https`;
-3. убедитесь, что proxy прокидывает `X-Forwarded-Proto`;
+2. для встроенного `nginx` оставьте `TRUST_PROXY_COUNT=1` и `PREFERRED_URL_SCHEME=https`;
+3. при необходимости смените `NGINX_HTTP_PORT`, если `80` уже занят на VPS;
 4. при необходимости добавьте `OPENAI_API_KEY`, но отсутствие OpenAI/VK/Telegram не должно ломать сам boot приложения.
 
 Полезные команды:
 
 ```bash
-docker compose logs -f web
-docker compose logs -f postgres
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f postgres
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 ```
 
 ## Что делает bootstrap
 
-При старте `web` контейнера:
+При старте production stack:
 
-1. entrypoint ждет готовности PostgreSQL;
-2. выполняет `flask --app wsgi.py db upgrade`;
-3. запускает Gunicorn на `0.0.0.0:8000`.
-4. Docker healthcheck проверяет `http://127.0.0.1:8000/healthz`.
+1. `postgres` поднимается только во внутренней сети;
+2. `web` entrypoint ждет готовности PostgreSQL;
+3. `web` выполняет `flask --app wsgi.py db upgrade` и запускает Gunicorn на `0.0.0.0:8000`;
+4. `nginx` публикует внешний HTTP порт и проксирует запросы в `web`;
+5. healthcheck `nginx` проверяет `http://127.0.0.1/healthz`, а `web` продолжает проверять локальный `http://127.0.0.1:8000/healthz`.
 
 Ожидаемые логи при нормальном старте:
 
@@ -67,23 +68,28 @@ docker compose ps
 - `[entrypoint] database ready target=...`
 - `[entrypoint] database migrations finished`
 - `[entrypoint] starting gunicorn bind=... workers=...`
+- `nginx ... "GET /healthz HTTP/1.1" 200 ... upstream=web:8000`
 - `[main.healthz] completed extra=...`
 
 ## Первичная проверка
 
 - открывается страница логина;
-- `curl http://localhost:8000/healthz` возвращает JSON со `status` и `critical_checks`;
+- `curl http://localhost/healthz` или `curl http://<VPS-IP>/healthz` возвращает JSON со `status` и `critical_checks`;
 - регистрация сохраняет пользователя в PostgreSQL;
 - dashboard доступен после входа;
 - settings сохраняют `vk_api_key` и `vk_group_id`.
 
 ## Короткий checklist для первого deploy
 
-1. `docker compose ps` показывает `postgres` и `web` в состоянии `healthy`.
-2. `docker compose logs -f web` не содержит ошибок про secret key, БД или миграции.
-3. `/healthz` возвращает `200 OK`; `optional_providers` могут быть `not_configured` без падения сервиса.
-4. Login page открывается по реальному HTTPS-URL через ваш proxy.
-5. Session cookie в браузере имеет `Secure` и `HttpOnly` в production.
+1. `docker compose -f docker-compose.yml -f docker-compose.production.yml ps` показывает `postgres`, `web` и `nginx` в состоянии `healthy`.
+2. `docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web` не содержит ошибок про secret key, БД, миграции или upstream `502/504`.
+3. `/healthz` через `nginx` возвращает `200 OK`; `optional_providers` могут быть `not_configured` без падения сервиса.
+4. Внешний вход идет через `NGINX_HTTP_PORT`, а не напрямую в `web`.
+5. Session cookie в браузере имеет `Secure` и `HttpOnly` после включения HTTPS перед `nginx`.
+
+## HTTPS later
+
+Текущий rollout намеренно HTTP-first. Каталоги `docker/nginx/certs` и `docker/nginx/www` уже добавлены, чтобы на следующем шаге подключить Let's Encrypt или другой TLS termination без смены compose-топологии.
 
 ## See Also
 

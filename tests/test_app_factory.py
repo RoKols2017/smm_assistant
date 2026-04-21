@@ -80,3 +80,19 @@ def test_create_app_wraps_wsgi_with_proxyfix_when_enabled():
         app = create_app(ProductionConfig)
 
     assert isinstance(app.wsgi_app, ProxyFix)
+
+
+def test_create_app_keeps_wsgi_without_proxyfix_when_disabled():
+    with patch.dict(
+        "os.environ",
+        {
+            "FLASK_ENV": "production",
+            "FLASK_SECRET_KEY": "prod-secret",
+            "DATABASE_URL": "postgresql://user:secret@db:5432/smm_assistant",
+            "TRUST_PROXY_COUNT": "0",
+        },
+        clear=True,
+    ):
+        app = create_app(ProductionConfig)
+
+    assert not isinstance(app.wsgi_app, ProxyFix)

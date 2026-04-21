@@ -130,6 +130,15 @@ def test_runtime_config_enables_secure_cookies_in_production():
     assert runtime_config['PREFERRED_URL_SCHEME'] == 'https'
 
 
+def test_runtime_config_reads_trusted_proxy_count_from_env():
+    with patch.dict(os.environ, {'TRUST_PROXY_COUNT': '1'}, clear=True):
+        runtime_config = ProductionConfig.build()
+
+    assert runtime_config['TRUST_PROXY_COUNT'] == 1
+    assert runtime_config['SESSION_COOKIE_SECURE'] is True
+    assert runtime_config['REMEMBER_COOKIE_SECURE'] is True
+
+
 def test_runtime_config_disables_secure_cookies_for_tests():
     with patch.dict(os.environ, {}, clear=True):
         runtime_config = RuntimeTestConfig.build()

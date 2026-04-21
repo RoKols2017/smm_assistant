@@ -29,7 +29,7 @@ Python application for generating social media content with OpenAI, publishing i
 - `social_publishers/` contains platform-specific publishing adapters.
 - `social_stats/` contains platform statistics collection.
 - `tests/` contains unit and integration tests.
-- `Dockerfile`, `docker-compose.yml`, and `docker/entrypoint.sh` provide containerized deployment for VPS.
+- `Dockerfile`, `docker-compose.yml`, `docker-compose.production.yml`, and `docker/entrypoint.sh` provide containerized deployment for local/dev and VPS ingress through nginx.
 - `test.py`, `test_env.py`, and `run_tests.py` remain legacy/demo-oriented scripts pending further cleanup.
 
 ## Architecture Notes
@@ -37,6 +37,7 @@ Python application for generating social media content with OpenAI, publishing i
 - Platform integrations are separated into focused modules instead of a shared service layer.
 - Configuration is expected to come from environment-driven runtime settings.
 - The project currently uses direct SDK/API clients inside modules rather than explicit interface abstractions.
+- Production deployment now uses a dedicated nginx container in front of the Flask/Gunicorn web container.
 
 ## Architecture
 See `.ai-factory/ARCHITECTURE.md` for detailed architecture guidelines.

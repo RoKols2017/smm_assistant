@@ -19,7 +19,7 @@ Python project for generating SMM content with OpenAI, publishing it to VK and T
 |- social_publishers/        # VK and Telegram publishing adapters
 |- social_stats/             # Platform statistics collection
 |- tests/                    # Unit and integration test suite
-|- docker/                   # Container entrypoint and deploy helpers
+|- docker/                   # Container entrypoint, nginx config, and deploy helpers
 |- .cursor/                  # Editor-specific project rules
 |- .opencode/                # Local AI skills and tool metadata
 |- README.md                 # User-facing project overview and usage
@@ -30,7 +30,8 @@ Python project for generating SMM content with OpenAI, publishing it to VK and T
 |- test_env.py               # Environment validation script
 |- .env.example              # Example environment variables
 |- Dockerfile                # Web container build
-|- docker-compose.yml        # Web + PostgreSQL stack
+|- docker-compose.yml        # Local web + PostgreSQL stack
+|- docker-compose.production.yml # VPS override with nginx ingress
 |- wsgi.py                   # WSGI entrypoint for Gunicorn
 |- .mcp.json                 # MCP server configuration for AI tooling
 `- .ai-factory/              # AI Factory project context files
@@ -53,6 +54,8 @@ Python project for generating SMM content with OpenAI, publishing it to VK and T
 | `social_stats/stats_collector.py` | Collects VK and Telegram statistics |
 | `requirements.txt` | Declares runtime and test dependencies |
 | `pytest.ini` | Defines pytest discovery and coverage settings |
+| `docker-compose.production.yml` | Adds nginx ingress and internal-only web networking |
+| `docker/nginx/conf.d/default.conf` | Proxies HTTP traffic from nginx to Gunicorn |
 
 ## Documentation
 | Document | Path | Description |

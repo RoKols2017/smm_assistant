@@ -20,6 +20,8 @@
 | `PREFERRED_URL_SCHEME` | Схема для `url_for(..., _external=True)` |
 | `SESSION_COOKIE_SECURE` | Требовать HTTPS-only session cookie |
 | `SESSION_COOKIE_SAMESITE` | `Lax`/`Strict`/`None` для session cookie |
+| `NGINX_HTTP_PORT` | Внешний HTTP порт контейнера `nginx` в production override |
+| `APP_DOMAIN` | Домен для будущего TLS/virtual host сценария |
 
 ## PostgreSQL в Docker Compose
 
@@ -45,6 +47,8 @@ MAX_RETRIES=3
 VK_API_VERSION=5.139
 OPENAI_TEXT_MODEL=gpt-5
 OPENAI_IMAGE_MODEL=dall-e-3
+NGINX_HTTP_PORT=80
+APP_DOMAIN=example.com
 TRUST_PROXY_COUNT=1
 PREFERRED_URL_SCHEME=https
 SESSION_COOKIE_SECURE=true
@@ -58,6 +62,20 @@ REMEMBER_COOKIE_SAMESITE=Lax
 ## Legacy compatibility
 
 В `.env.example` сохранены пустые `VK_TOKEN`, `VK_GROUP_ID`, `TG_TOKEN`, `TG_CHAT_ID` для совместимости со старым demo-кодом первой части. Для нового Flask MVP основными являются пользовательские настройки, которые вводятся через web UI и сохраняются в PostgreSQL.
+
+## Production compose topology
+
+Production сценарий использует два compose-файла:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+```
+
+Роли сервисов:
+
+- `nginx` принимает внешний HTTP трафик на `NGINX_HTTP_PORT`;
+- `web` слушает только во внутренней сети Docker и получает forwarded headers от `nginx`;
+- `postgres` остается внутренним сервисом без внешней публикации портов.
 
 ## VK settings на пользователя
 
@@ -87,10 +105,11 @@ REMEMBER_COOKIE_SAMESITE=Lax
 
 - `FLASK_SECRET_KEY` должен быть задан явно;
 - приложение не должно запускаться в production без корректного `DATABASE_URL`;
-- для HTTPS за reverse proxy задайте `TRUST_PROXY_COUNT` явно, иначе Flask не будет доверять `X-Forwarded-*` заголовкам;
+- для встроенного `nginx` оставьте `TRUST_PROXY_COUNT=1`, иначе Flask не будет доверять `X-Forwarded-*` заголовкам;
 - в production по умолчанию включены `SESSION_COOKIE_SECURE=true` и `REMEMBER_COOKIE_SECURE=true`, поэтому TLS termination должен быть настроен корректно;
 - `PREFERRED_URL_SCHEME=https` следует сохранять для production, чтобы логин-redirect и внешние URL не деградировали до `http`;
 - миграции применяются через `flask db upgrade` в контейнере `web`.
+- текущий rollout публикует только HTTP ingress через `nginx`; TLS будет отдельным следующим шагом через уже подготовленные mount points `docker/nginx/certs` и `docker/nginx/www`.
 
 ## See Also
 

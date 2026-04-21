@@ -15,6 +15,12 @@
 python -m pytest tests/ -v
 ```
 
+Для docker integration smoke-check с `nginx` можно запускать отдельный integration-тест:
+
+```bash
+python -m pytest tests/integration/test_deploy_stack.py -m integration -v
+```
+
 ## Статическая проверка синтаксиса
 
 ```bash
@@ -33,6 +39,22 @@ docker compose logs -f web
 `.env` для dev smoke-check не обязателен: compose подставит безопасные значения по умолчанию. Для сценариев, близких к production, используйте явный `.env`.
 
 Дополнительно проверьте, что в логах `web` есть успешный `db upgrade`, а не откат на bootstrap-режим.
+
+## Production-like smoke-check with nginx
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+curl http://127.0.0.1:${NGINX_HTTP_PORT:-80}/healthz
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web
+```
+
+Ожидаемое поведение:
+
+- `nginx` и `web` оба становятся `healthy`;
+- `/healthz` отвечает через `nginx`, а не напрямую из `web`;
+- в логах `nginx` нет постоянных `502`/`504`;
+- в логах `web` есть `[main.healthz] completed`.
 
 ## Текущее ограничение локального окружения агента
 

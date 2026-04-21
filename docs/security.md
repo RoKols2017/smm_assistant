@@ -48,17 +48,26 @@
 - используется hash-хранение паролей;
 - Flask session cookies помечены как `HttpOnly`;
 - в production session и remember cookies должны оставаться `Secure` и уходить только по HTTPS;
-- для reverse proxy необходимо явно настраивать `TRUST_PROXY_COUNT`, чтобы Flask корректно понимал `https`-scheme и не строил небезопасные redirect URL;
+- для встроенного `nginx` нужно оставлять `TRUST_PROXY_COUNT=1`, чтобы Flask корректно понимал `https`-scheme и не строил небезопасные redirect URL;
 - формы защищены CSRF через Flask-WTF.
 
 ## Что проверить на VPS
 
 - выставлен уникальный `FLASK_SECRET_KEY`;
-- проверено, что proxy передаёт `X-Forwarded-Proto` и приложение запускается с корректным `TRUST_PROXY_COUNT`;
+- проверено, что `nginx` передаёт `X-Forwarded-Proto`, `X-Forwarded-For`, `Host`, `X-Forwarded-Port`, а приложение запускается с корректным `TRUST_PROXY_COUNT`;
 - session cookie в браузере имеет флаги `Secure`, `HttpOnly`, `SameSite` согласно production-политике;
 - `.env` не попадает в Git и backups без шифрования;
 - доступ к VPS ограничен;
-- Docker logs не содержат raw token values.
+- Docker logs не содержат raw token values;
+- внешний доступ идет через `nginx`, а `web` не публикуется в интернет напрямую в production override.
+
+## HTTP-first rollout
+
+Текущая реализация добавляет `nginx` контейнер и безопасную proxy-топологию, но не включает TLS termination внутри Compose по умолчанию. Это осознанный промежуточный шаг:
+
+1. сначала стабилизируется ingress и health-flow;
+2. затем подключаются сертификаты через уже подготовленные `docker/nginx/certs` и `docker/nginx/www`;
+3. только после этого имеет смысл проверять реальные `Secure` cookie через HTTPS endpoint.
 
 ## See Also
 

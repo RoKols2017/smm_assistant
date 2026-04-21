@@ -4,7 +4,7 @@
 
 ## Рабочая архитектура
 
-Проект реализован как Flask modular monolith. Это один web-сервис, который рендерит HTML через Jinja, хранит пользователей и настройки в PostgreSQL и переиспользует legacy-модули первой части как интеграционные адаптеры.
+Проект реализован как Flask modular monolith. Это один web-сервис, который рендерит HTML через Jinja, хранит пользователей и настройки в PostgreSQL и переиспользует legacy-модули первой части как интеграционные адаптеры. Для VPS deploy перед ним добавлен отдельный ingress-контейнер `nginx`, который проксирует внешний трафик во внутренний Flask/Gunicorn сервис.
 
 ## Ключевые слои
 
@@ -32,10 +32,12 @@
 |- social_publishers/
 |- social_stats/
 |- docker/
+|  `- nginx/
 |- migrations/
 |- tests/
 |- Dockerfile
 |- docker-compose.yml
+|- docker-compose.production.yml
 `- wsgi.py
 ```
 
@@ -46,6 +48,7 @@
 3. Flask-Login для сессий.
 4. Flask-WTF для форм и CSRF.
 5. Bootstrap через CDN без кастомного CSS.
+6. Production ingress идет через `nginx -> web -> postgres`, где `web` и `postgres` остаются на внутренней Docker-сети.
 
 ## VK integration boundary
 

@@ -2,7 +2,7 @@
 
 > Flask-приложение для генерации SMM-постов, изображений и автопубликации в VK с хранением пользователей в PostgreSQL.
 
-Проект превращает первую часть учебного репозитория в веб-приложение: регистрация и вход, пользовательские VK-настройки, генерация контента через OpenAI и базовая VK-статистика в одном Docker-ready сервисе.
+Проект превращает первую часть учебного репозитория в веб-приложение: регистрация и вход, пользовательские VK-настройки, генерация контента через OpenAI и базовая VK-статистика в одном Docker-ready сервисе. Для VPS поддерживается production override со схемой `nginx -> web -> postgres`.
 
 ## Быстрый старт
 
@@ -26,32 +26,35 @@ docker compose up --build
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
-docker compose logs -f web
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web
 ```
 
 Для production обязательно задайте как минимум:
 
 - `FLASK_SECRET_KEY`
 - `DATABASE_URL`
-- `TRUST_PROXY_COUNT` если приложение стоит за Nginx/Caddy/другим reverse proxy
+- `TRUST_PROXY_COUNT=1` для встроенного `nginx`
+- `NGINX_HTTP_PORT`
 
-После старта контейнер `web` должен:
+После старта production stack должен:
 
-1. дождаться PostgreSQL;
-2. выполнить `flask --app wsgi.py db upgrade`;
-3. поднять Gunicorn;
-4. отвечать `200 OK` на `GET /healthz`.
+1. поднять `postgres` во внутренней сети;
+2. дождаться PostgreSQL в контейнере `web` и выполнить `flask --app wsgi.py db upgrade`;
+3. поднять Gunicorn только во внутренней сети;
+4. поднять `nginx` на внешнем HTTP порту;
+5. отвечать `200 OK` на `GET /healthz` через `nginx`.
 
-Типичные полезные логи `web` контейнера:
+Типичные полезные логи production-контейнеров:
 
+- `nginx ... "GET /healthz HTTP/1.1" 200 ... upstream=web:8000`
 - `[entrypoint] waiting for database availability`
 - `[entrypoint] database ready ...`
 - `[entrypoint] database migrations finished`
 - `[entrypoint] starting gunicorn ...`
 - `[main.healthz] completed ...`
 
-Если startup падает, первым делом проверьте `docker compose logs -f web` на ошибки про `FLASK_SECRET_KEY`, `DATABASE_URL`, миграции или недоступную БД.
+Если startup падает, первым делом проверьте `docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web` на ошибки про `FLASK_SECRET_KEY`, `DATABASE_URL`, миграции, upstream `502/504` или недоступную БД.
 
 ## Важная оговорка по VK
 
@@ -78,8 +81,10 @@ docker compose logs -f web
 
 - `wsgi.py` — WSGI entrypoint для Gunicorn.
 - `app/__init__.py` — Flask app factory.
-- `docker-compose.yml` — web + postgres.
+- `docker-compose.yml` — локальный `web + postgres` стек.
+- `docker-compose.production.yml` — production override с `nginx`.
 - `docker/entrypoint.sh` — ожидание БД и запуск `flask db upgrade`.
+- `docker/nginx/` — конфиги и каталоги reverse proxy.
 
 ## Лицензия
 

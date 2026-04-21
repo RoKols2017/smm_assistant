@@ -46,9 +46,11 @@ This architecture fits the current repository and the assignment constraints: on
 |- social_stats/                 # Legacy statistics logic to reuse/refactor
 |- tests/                        # Unit and integration tests
 |- migrations/                   # Database migrations if Flask-Migrate is adopted
-|- docker/                       # Optional entrypoint/wait scripts
+|- docker/                       # Entrypoint, nginx config, and deploy helpers
+|  `- nginx/                     # Reverse proxy config and future TLS mount points
 |- Dockerfile
 |- docker-compose.yml
+|- docker-compose.production.yml
 |- .env.example
 `- README.md
 ```
@@ -68,6 +70,7 @@ This architecture fits the current repository and the assignment constraints: on
 - Models persist user data, VK settings, and generation/publication history.
 - Legacy modules remain integration adapters behind service APIs until they are cleaned up.
 - Database writes happen in service boundaries, not in templates or raw integration modules.
+- Deployment ingress is handled by a dedicated nginx container in production, while Flask/Gunicorn remains the single application service behind the proxy.
 
 ## VK Integration Rules
 - Use a fixed VK API version in the integration layer so response formats do not drift unexpectedly between environments.
