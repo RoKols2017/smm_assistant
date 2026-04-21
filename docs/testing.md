@@ -43,9 +43,10 @@ docker compose logs -f web
 ## Production-like smoke-check with nginx
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+./deploy_vps.sh
 docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 curl http://127.0.0.1:${NGINX_HTTP_PORT:-80}/healthz
+curl -kI https://127.0.0.1:${NGINX_HTTPS_PORT:-443}/
 docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web
 ```
 
@@ -53,6 +54,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f ng
 
 - `nginx` и `web` оба становятся `healthy`;
 - `/healthz` отвечает через `nginx`, а не напрямую из `web`;
+- `https://...` отвечает через `nginx` с подключенным сертификатом;
 - в логах `nginx` нет постоянных `502`/`504`;
 - в логах `web` есть `[main.healthz] completed`.
 

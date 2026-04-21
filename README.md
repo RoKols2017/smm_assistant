@@ -26,7 +26,7 @@ docker compose up --build
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+./deploy_vps.sh
 docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web
 ```
 
@@ -34,16 +34,24 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f ng
 
 - `FLASK_SECRET_KEY`
 - `DATABASE_URL`
-- `TRUST_PROXY_COUNT=1` для встроенного `nginx`
-- `NGINX_HTTP_PORT`
+- каталог сертификата в `/root/cert/<your-domain>/`
+
+`deploy_vps.sh` во время запуска:
+
+- запрашивает домен;
+- ищет сертификат и ключ в `/root/cert/<domain>/`;
+- привязывает их в `docker/nginx/certs/` как runtime symlink;
+- включает `PREFERRED_URL_SCHEME=https` и `Secure` cookies;
+- поднимает `nginx -> web -> postgres` стек.
 
 После старта production stack должен:
 
 1. поднять `postgres` во внутренней сети;
 2. дождаться PostgreSQL в контейнере `web` и выполнить `flask --app wsgi.py db upgrade`;
 3. поднять Gunicorn только во внутренней сети;
-4. поднять `nginx` на внешнем HTTP порту;
-5. отвечать `200 OK` на `GET /healthz` через `nginx`.
+4. поднять `nginx` на внешних портах `80/443`;
+5. редиректить обычный трафик с `HTTP` на `HTTPS`, но оставлять `GET /healthz` доступным;
+6. отвечать `200 OK` на `GET /healthz` через `nginx`.
 
 Типичные полезные логи production-контейнеров:
 

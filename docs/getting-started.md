@@ -34,15 +34,16 @@ docker compose up --build
 git clone <repository-url>
 cd sms_assistant
 cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+./deploy_vps.sh
 ```
 
 Для production перед запуском:
 
 1. заполните `FLASK_SECRET_KEY` и `DATABASE_URL`;
-2. для встроенного `nginx` оставьте `TRUST_PROXY_COUNT=1` и `PREFERRED_URL_SCHEME=https`;
-3. при необходимости смените `NGINX_HTTP_PORT`, если `80` уже занят на VPS;
-4. при необходимости добавьте `OPENAI_API_KEY`, но отсутствие OpenAI/VK/Telegram не должно ломать сам boot приложения.
+2. положите сертификат и ключ в `/root/cert/<your-domain>/`;
+3. во время `./deploy_vps.sh` введите домен, привязанный к VPS;
+4. при необходимости смените `NGINX_HTTP_PORT` или `NGINX_HTTPS_PORT`, если `80/443` уже заняты на VPS;
+5. при необходимости добавьте `OPENAI_API_KEY`, но отсутствие OpenAI/VK/Telegram не должно ломать сам boot приложения.
 
 Полезные команды:
 
@@ -59,8 +60,9 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 1. `postgres` поднимается только во внутренней сети;
 2. `web` entrypoint ждет готовности PostgreSQL;
 3. `web` выполняет `flask --app wsgi.py db upgrade` и запускает Gunicorn на `0.0.0.0:8000`;
-4. `nginx` публикует внешний HTTP порт и проксирует запросы в `web`;
-5. healthcheck `nginx` проверяет `http://127.0.0.1/healthz`, а `web` продолжает проверять локальный `http://127.0.0.1:8000/healthz`.
+4. `deploy_vps.sh` привязывает сертификат и ключ из `/root/cert/<domain>/`;
+5. `nginx` публикует внешние порты `80/443`, редиректит трафик на `HTTPS` и проксирует запросы в `web`;
+6. healthcheck `nginx` проверяет `http://127.0.0.1/healthz`, а `web` продолжает проверять локальный `http://127.0.0.1:8000/healthz`.
 
 Ожидаемые логи при нормальном старте:
 
@@ -69,12 +71,14 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 - `[entrypoint] database migrations finished`
 - `[entrypoint] starting gunicorn bind=... workers=...`
 - `nginx ... "GET /healthz HTTP/1.1" 200 ... upstream=web:8000`
+- `nginx ... "GET / HTTP/1.1" 301 ...`
 - `[main.healthz] completed extra=...`
 
 ## Первичная проверка
 
 - открывается страница логина;
 - `curl http://localhost/healthz` или `curl http://<VPS-IP>/healthz` возвращает JSON со `status` и `critical_checks`;
+- `curl -I https://<your-domain>/` показывает рабочий TLS и ответ приложения;
 - регистрация сохраняет пользователя в PostgreSQL;
 - dashboard доступен после входа;
 - settings сохраняют `vk_api_key` и `vk_group_id`.
@@ -84,12 +88,17 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 1. `docker compose -f docker-compose.yml -f docker-compose.production.yml ps` показывает `postgres`, `web` и `nginx` в состоянии `healthy`.
 2. `docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f nginx web` не содержит ошибок про secret key, БД, миграции или upstream `502/504`.
 3. `/healthz` через `nginx` возвращает `200 OK`; `optional_providers` могут быть `not_configured` без падения сервиса.
-4. Внешний вход идет через `NGINX_HTTP_PORT`, а не напрямую в `web`.
-5. Session cookie в браузере имеет `Secure` и `HttpOnly` после включения HTTPS перед `nginx`.
+4. Внешний вход идет через `nginx` на `NGINX_HTTP_PORT` или `NGINX_HTTPS_PORT`, а не напрямую в `web`.
+5. Session cookie в браузере имеет `Secure` и `HttpOnly` после HTTPS deploy через `./deploy_vps.sh`.
 
-## HTTPS later
+## HTTPS cert layout
 
-Текущий rollout намеренно HTTP-first. Каталоги `docker/nginx/certs` и `docker/nginx/www` уже добавлены, чтобы на следующем шаге подключить Let's Encrypt или другой TLS termination без смены compose-топологии.
+`./deploy_vps.sh` ожидает сертификаты в `/root/cert/<domain>/` и пытается автоматически найти одну из типовых пар файлов:
+
+- `fullchain.pem` + `privkey.pem`
+- `cert.pem` + `key.pem`
+- `certificate.crt` + `private.key`
+- `tls.crt` + `tls.key`
 
 ## See Also
 

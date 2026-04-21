@@ -21,6 +21,7 @@
 | `SESSION_COOKIE_SECURE` | Требовать HTTPS-only session cookie |
 | `SESSION_COOKIE_SAMESITE` | `Lax`/`Strict`/`None` для session cookie |
 | `NGINX_HTTP_PORT` | Внешний HTTP порт контейнера `nginx` в production override |
+| `NGINX_HTTPS_PORT` | Внешний HTTPS порт контейнера `nginx` в production override |
 | `APP_DOMAIN` | Домен для будущего TLS/virtual host сценария |
 
 ## PostgreSQL в Docker Compose
@@ -48,6 +49,7 @@ VK_API_VERSION=5.139
 OPENAI_TEXT_MODEL=gpt-5
 OPENAI_IMAGE_MODEL=dall-e-3
 NGINX_HTTP_PORT=80
+NGINX_HTTPS_PORT=443
 APP_DOMAIN=example.com
 TRUST_PROXY_COUNT=1
 PREFERRED_URL_SCHEME=https
@@ -73,7 +75,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --bu
 
 Роли сервисов:
 
-- `nginx` принимает внешний HTTP трафик на `NGINX_HTTP_PORT`;
+- `nginx` принимает внешний HTTP трафик на `NGINX_HTTP_PORT` и HTTPS трафик на `NGINX_HTTPS_PORT`;
 - `web` слушает только во внутренней сети Docker и получает forwarded headers от `nginx`;
 - `postgres` остается внутренним сервисом без внешней публикации портов.
 
@@ -109,7 +111,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --bu
 - в production по умолчанию включены `SESSION_COOKIE_SECURE=true` и `REMEMBER_COOKIE_SECURE=true`, поэтому TLS termination должен быть настроен корректно;
 - `PREFERRED_URL_SCHEME=https` следует сохранять для production, чтобы логин-redirect и внешние URL не деградировали до `http`;
 - миграции применяются через `flask db upgrade` в контейнере `web`.
-- текущий rollout публикует только HTTP ingress через `nginx`; TLS будет отдельным следующим шагом через уже подготовленные mount points `docker/nginx/certs` и `docker/nginx/www`.
+- `./deploy_vps.sh` запрашивает домен, привязывает сертификат из `/root/cert/<domain>/` и поднимает HTTPS ingress без ручной правки nginx-конфига.
 
 ## See Also
 
